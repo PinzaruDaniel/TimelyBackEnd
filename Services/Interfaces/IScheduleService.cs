@@ -6,4 +6,4 @@ public interface IScheduleService
 {
     Task AddScheduleAsync(CreateScheduleDto dto);
     Task<ScheduleDto?> GetScheduleByGroupAsync(Guid groupId);
-}
+} 

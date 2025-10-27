@@ -28,7 +28,7 @@ public class AuthService : IAuthService
 
         var user = new User
         {
-            Name = dto.Name,
+            FullName = dto.Name,
             Email = dto.Email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password)
         };
@@ -36,7 +36,7 @@ public class AuthService : IAuthService
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
-        return new AuthResponseDto(user.Id, user.Name, user.Email, GenerateJwtToken(user));
+        return new AuthResponseDto(user.Id, user.FullName, user.Email, GenerateJwtToken(user));
     }
 
     public async Task<AuthResponseDto> LoginAsync(LoginDto dto)
@@ -45,7 +45,7 @@ public class AuthService : IAuthService
         if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
             throw new Exception("Invalid credentials.");
 
-        return new AuthResponseDto(user.Id, user.Name, user.Email, GenerateJwtToken(user));
+        return new AuthResponseDto(user.Id, user.FullName, user.Email, GenerateJwtToken(user));
     }
 
     private string GenerateJwtToken(User user)
@@ -57,7 +57,7 @@ public class AuthService : IAuthService
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
-            new Claim("name", user.Name)
+            new Claim("name", user.FullName)
         };
 
         var token = new JwtSecurityToken(

@@ -9,7 +9,7 @@ public static class QuartzSchedulerService
     {
         var factory = new StdSchedulerFactory();
         var scheduler = await factory.GetScheduler();
-        await scheduler.Start();
+        await scheduler.Start(); 
 
         Console.WriteLine("🕒 Quartz Scheduler started.");
         return scheduler;

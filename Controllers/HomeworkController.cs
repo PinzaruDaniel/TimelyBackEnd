@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using TimelyBackEnd.DTOs.Homework;
 using TimelyBackEnd.Services.Interfaces;
 
@@ -20,7 +21,13 @@ public class HomeworkController : ControllerBase
     [Authorize]
     public async Task<IActionResult> AddHomework([FromBody] CreateHomeworkDto dto)
     {
-        var homework = await _homeworkService.AddHomeworkAsync(dto);
+        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var homework = await _homeworkService.AddHomeworkAsync(dto, userId);
         return Ok(homework);
     }
 

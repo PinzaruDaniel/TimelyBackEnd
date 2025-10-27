@@ -14,10 +14,13 @@ public class TimelyDbContext : DbContext
     public DbSet<Group> Groups { get; set; } = null!;
 
     // Homework
-    public DbSet<Homework> Homework { get; set; } = null!;
+    public DbSet<Homework> Homeworks { get; set; } = null!;
 
     // Schedule entries
     public DbSet<ScheduleEntry> ScheduleEntries { get; set; } = null!;
+
+    // Notifications
+    public DbSet<Notification> Notifications { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -26,7 +29,7 @@ public class TimelyDbContext : DbContext
         // User <-> Group (many-to-one)
         modelBuilder.Entity<User>()
             .HasOne(u => u.Group)
-            .WithMany(g => g.Students)
+            .WithMany(g => g.Users)
             .HasForeignKey(u => u.GroupId)
             .OnDelete(DeleteBehavior.Cascade);
 
@@ -37,18 +40,31 @@ public class TimelyDbContext : DbContext
             .HasForeignKey(s => s.GroupId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Homework <-> ScheduleEntry (many-to-one)
+        // Homework <-> Group (many-to-one)
         modelBuilder.Entity<Homework>()
-            .HasOne(h => h.ScheduleEntry)
-            .WithMany(s => s.Homework)
-            .HasForeignKey(h => h.ScheduleEntryId)
+            .HasOne(h => h.Group)
+            .WithMany(g => g.Homeworks)
+            .HasForeignKey(h => h.GroupId)
             .OnDelete(DeleteBehavior.Cascade);
 
         // Homework <-> User (many-to-one)
         modelBuilder.Entity<Homework>()
-            .HasOne(h => h.Student)
-            .WithMany(u => u.Homework)
-            .HasForeignKey(h => h.StudentId)
+            .HasOne(h => h.CreatedBy)
+            .WithMany(u => u.Homeworks)
+            .HasForeignKey(h => h.CreatedById)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Notification relationships
+        modelBuilder.Entity<Notification>()
+            .HasOne(n => n.Group)
+            .WithMany(g => g.Notifications)
+            .HasForeignKey(n => n.GroupId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<Notification>()
+            .HasOne(n => n.User)
+            .WithMany(u => u.Notifications)
+            .HasForeignKey(n => n.UserId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

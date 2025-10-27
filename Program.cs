@@ -37,8 +37,6 @@ builder.Services.AddCors(options =>
 // Quartz for notifications
 builder.Services.AddQuartz(q =>
 {
-    q.UseMicrosoftDependencyInjectionJobFactory();
-    
     var jobKey = new JobKey("NotificationJob");
     q.AddJob<NotificationJob>(opts => opts.WithIdentity(jobKey));
     q.AddTrigger(opts => opts
@@ -89,7 +87,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors("AllowFrontend"); // Add this
+app.UseCors("AllowFrontend"); 
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

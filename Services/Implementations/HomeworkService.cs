@@ -15,28 +15,32 @@ public class HomeworkService : IHomeworkService
         _context = context;
     }
 
-    public async Task<HomeworkDto> AddHomeworkAsync(CreateHomeworkDto dto)
+    public async Task<HomeworkDto> AddHomeworkAsync(CreateHomeworkDto dto, Guid userId)
     {
         var homework = new Homework
         {
             GroupId = dto.GroupId,
+            CreatedById = userId,
             Subject = dto.Subject,
             Description = dto.Description,
-            DueDate = dto.DueDate,
-            Status = "pending"
+            DueDate = dto.DueDate
         };
 
         _context.Homeworks.Add(homework);
         await _context.SaveChangesAsync();
 
-        return new HomeworkDto(homework.Id, homework.Subject, homework.Description, homework.DueDate, homework.Status);
+        var createdByUser = await _context.Users.FindAsync(userId);
+        var createdByName = createdByUser?.FullName ?? "Unknown";
+
+        return new HomeworkDto(homework.Id, homework.Subject, homework.Description, homework.CreatedAt, homework.DueDate, createdByName);
     }
 
     public async Task<List<HomeworkDto>> GetHomeworksForGroupAsync(Guid groupId)
     {
         return await _context.Homeworks
             .Where(h => h.GroupId == groupId)
-            .Select(h => new HomeworkDto(h.Id, h.Subject, h.Description, h.DueDate, h.Status))
+            .Include(h => h.CreatedBy)
+            .Select(h => new HomeworkDto(h.Id, h.Subject, h.Description, h.CreatedAt, h.DueDate, h.CreatedBy.FullName))
             .ToListAsync();
     }
 
@@ -45,7 +49,7 @@ public class HomeworkService : IHomeworkService
         var hw = await _context.Homeworks.FindAsync(homeworkId)
             ?? throw new Exception("Homework not found.");
 
-        hw.Status = "done";
+        _context.Homeworks.Remove(hw);
         await _context.SaveChangesAsync();
     }
 }

@@ -8,4 +8,4 @@ namespace TimelyBackEnd.Services.Interfaces
         Task<List<NotificationDto>> GetPendingNotificationsAsync();
         Task SendNotificationAsync(CreateNotificationDto dto);
     }
-}
+} 

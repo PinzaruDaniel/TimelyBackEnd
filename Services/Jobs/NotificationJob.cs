@@ -12,7 +12,7 @@ namespace TimelyBackEnd.Services.Jobs
         {
             _context = context;
         }
-
+ 
         public async Task Execute(IJobExecutionContext context)
         {
             var notifications = await _context.Notifications
