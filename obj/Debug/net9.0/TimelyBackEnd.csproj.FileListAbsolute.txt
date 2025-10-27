@@ -1,0 +1,7 @@
+/Users/pinzaru/projects/Timely/TimelyBackEnd/obj/Debug/net9.0/TimelyBackEnd.csproj.AssemblyReference.cache
+/Users/pinzaru/projects/Timely/TimelyBackEnd/obj/Debug/net9.0/TimelyBackEnd.GeneratedMSBuildEditorConfig.editorconfig
+/Users/pinzaru/projects/Timely/TimelyBackEnd/obj/Debug/net9.0/TimelyBackEnd.AssemblyInfoInputs.cache
+/Users/pinzaru/projects/Timely/TimelyBackEnd/obj/Debug/net9.0/TimelyBackEnd.AssemblyInfo.cs
+/Users/pinzaru/projects/Timely/TimelyBackEnd/obj/Debug/net9.0/TimelyBackEnd.csproj.CoreCompileInputs.cache
+/Users/pinzaru/projects/Timely/TimelyBackEnd/obj/Debug/net9.0/TimelyBackEnd.MvcApplicationPartsAssemblyInfo.cs
+/Users/pinzaru/projects/Timely/TimelyBackEnd/obj/Debug/net9.0/TimelyBackEnd.MvcApplicationPartsAssemblyInfo.cache
