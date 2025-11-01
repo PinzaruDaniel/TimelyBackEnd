@@ -26,6 +26,19 @@ public class TimelyDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        // Group invite code must be unique
+        modelBuilder.Entity<Group>()
+            .HasIndex(g => g.InviteCode)
+            .IsUnique();
+        modelBuilder.Entity<Group>()
+            .Property(g => g.InviteCode)
+            .IsRequired(false);
+        modelBuilder.Entity<Group>()
+            .Property(g => g.IsPrivate)
+            .HasDefaultValue(false);
+        modelBuilder.Entity<Group>()
+            .HasIndex(g => g.OwnerId);
+
         // User <-> Group (many-to-one)
         modelBuilder.Entity<User>()
             .HasOne(u => u.Group)

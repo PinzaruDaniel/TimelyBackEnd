@@ -17,6 +17,16 @@ public class HomeworkService : IHomeworkService
 
     public async Task<HomeworkDto> AddHomeworkAsync(CreateHomeworkDto dto, Guid userId)
     {
+        var group = await _context.Groups.FindAsync(dto.GroupId);
+        if (group == null)
+        {
+            throw new Exception("Group not found.");
+        }
+        // Only owner can add homework (public or private)
+        if (group.OwnerId == null || group.OwnerId != userId)
+        {
+            throw new UnauthorizedAccessException("Only the group owner can add homework to this group.");
+        }
         var homework = new Homework
         {
             GroupId = dto.GroupId,
@@ -25,13 +35,10 @@ public class HomeworkService : IHomeworkService
             Description = dto.Description,
             DueDate = dto.DueDate
         };
-
         _context.Homeworks.Add(homework);
         await _context.SaveChangesAsync();
-
         var createdByUser = await _context.Users.FindAsync(userId);
         var createdByName = createdByUser?.FullName ?? "Unknown";
-
         return new HomeworkDto(homework.Id, homework.Subject, homework.Description, homework.CreatedAt, homework.DueDate, createdByName);
     }
 

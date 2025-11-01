@@ -8,6 +8,7 @@ using TimelyBackEnd.Services;
 using TimelyBackEnd.Services.Jobs;
 using TimelyBackEnd.Services.Interfaces;
 using TimelyBackEnd.Services.Implementations;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,6 +23,7 @@ builder.Services.AddScoped<IHomeworkService, HomeworkService>();
 builder.Services.AddScoped<IScheduleService, ScheduleService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<NotificationJob>(); // Add this
+builder.Services.AddScoped<HomeworkCleanupJob>(); // Register HomeworkCleanupJob
 
 // CORS
 builder.Services.AddCors(options =>
@@ -34,15 +36,24 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Quartz for notifications
+// Quartz for notifications and homework cleanup
 builder.Services.AddQuartz(q =>
 {
-    var jobKey = new JobKey("NotificationJob");
-    q.AddJob<NotificationJob>(opts => opts.WithIdentity(jobKey));
+    // Notification job
+    var notificationJobKey = new JobKey("NotificationJob");
+    q.AddJob<NotificationJob>(opts => opts.WithIdentity(notificationJobKey));
     q.AddTrigger(opts => opts
-        .ForJob(jobKey)
+        .ForJob(notificationJobKey)
         .WithIdentity("NotificationJob-trigger")
         .WithSimpleSchedule(x => x.WithIntervalInMinutes(5).RepeatForever()));
+    
+    // Homework cleanup job
+    var cleanupJobKey = new JobKey("HomeworkCleanupJob");
+    q.AddJob<HomeworkCleanupJob>(opts => opts.WithIdentity(cleanupJobKey));
+    q.AddTrigger(opts => opts
+        .ForJob(cleanupJobKey)
+        .WithIdentity("HomeworkCleanupJob-trigger")
+        .WithSimpleSchedule(x => x.WithIntervalInMinutes(10).RepeatForever()));
 });
 builder.Services.AddQuartzHostedService(opt => opt.WaitForJobsToComplete = true);
 
@@ -74,7 +85,35 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // Controllers
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "TimelyBackEnd API",
+        Version = "v1"
+    });
+
+    var securityScheme = new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Description = "Enter 'Bearer {token}'",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Reference = new OpenApiReference
+        {
+            Type = ReferenceType.SecurityScheme,
+            Id = "Bearer"
+        }
+    };
+
+    c.AddSecurityDefinition("Bearer", securityScheme);
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        { new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" } }, new string[] { } }
+    });
+});
 
 var app = builder.Build();
 
