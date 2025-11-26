@@ -28,7 +28,7 @@ public class GroupService : IGroupService
             SchoolName = dto.SchoolName,
             InviteCode = inviteCode,
             IsPrivate = dto.IsPrivate,
-            OwnerId = dto.IsPrivate ? dto.OwnerId : null
+            OwnerId = dto.OwnerId
         };
         _context.Groups.Add(group);
         await _context.SaveChangesAsync();

@@ -17,7 +17,7 @@ public class NotificationController : ControllerBase
     }
 
     [HttpPost("send")]
-    [Authorize]
+        [Authorize]
     public async Task<IActionResult> SendNotification([FromBody] CreateNotificationDto dto)
     {
         await _notificationService.SendNotificationAsync(dto);
@@ -25,7 +25,7 @@ public class NotificationController : ControllerBase
     }
 
     [HttpGet("pending")]
-    [Authorize]
+        [Authorize]
     public async Task<IActionResult> GetPendingNotifications()
     {
         var notifications = await _notificationService.GetPendingNotificationsAsync();

@@ -24,6 +24,7 @@ builder.Services.AddScoped<IScheduleService, ScheduleService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<NotificationJob>(); // Add this
 builder.Services.AddScoped<HomeworkCleanupJob>(); // Register HomeworkCleanupJob
+builder.Services.AddHttpClient();
 
 // CORS
 builder.Services.AddCors(options =>
@@ -57,7 +58,7 @@ builder.Services.AddQuartz(q =>
 });
 builder.Services.AddQuartzHostedService(opt => opt.WaitForJobsToComplete = true);
 
-// Authentication (JWT)
+// JWT authentication
 var jwtKey = builder.Configuration["Jwt:Key"];
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
@@ -117,6 +118,46 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+// Seed default user if it doesn't exist
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<TimelyDbContext>();
+    try
+    {
+        await context.Database.EnsureCreatedAsync();
+        
+        var defaultUserEmail = "alice.smith@example.com";
+        if (!await context.Users.AnyAsync(u => u.Email == defaultUserEmail))
+        {
+            var defaultUser = new TimelyBackEnd.Models.User
+            {
+                Id = Guid.NewGuid(),
+                FullName = "Alice Smith",
+                Email = defaultUserEmail,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("123"),
+                FirstName = "Alice",
+                LastName = "Smith",
+                Age = 25,
+                Street = "123 Maple Street",
+                City = "Springfield",
+                State = "IL",
+                Zip = "62701",
+                Country = "USA",
+                ImageUrl = "https://optimistdrinks.com/cdn/shop/articles/oip21_day_5_1.jpg?v=1621112229",
+                Role = "Student"
+            };
+            
+            context.Users.Add(defaultUser);
+            await context.SaveChangesAsync();
+            Console.WriteLine("✅ Default user 'alice.smith@example.com' created successfully!");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"⚠️ Error seeding default user: {ex.Message}");
+    }
+}
+
 // Middleware
 if (app.Environment.IsDevelopment())
 {
@@ -127,6 +168,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend"); 
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

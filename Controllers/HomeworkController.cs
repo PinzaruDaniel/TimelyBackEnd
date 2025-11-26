@@ -18,15 +18,10 @@ public class HomeworkController : ControllerBase
     }
 
     [HttpPost("add")]
-    [Authorize]
+        [Authorize]
     public async Task<IActionResult> AddHomework([FromBody] CreateHomeworkDto dto)
     {
-        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-        {
-            return Unauthorized();
-        }
-
+        var userId = dto.UserId;
         var homework = await _homeworkService.AddHomeworkAsync(dto, userId);
         return Ok(homework);
     }
@@ -39,7 +34,7 @@ public class HomeworkController : ControllerBase
     }
 
     [HttpPut("{id}/done")]
-    [Authorize]
+        [Authorize]
     public async Task<IActionResult> MarkHomeworkDone(Guid id)
     {
         await _homeworkService.MarkHomeworkDoneAsync(id);

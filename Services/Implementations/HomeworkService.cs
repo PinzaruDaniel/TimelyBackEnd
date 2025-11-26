@@ -23,10 +23,11 @@ public class HomeworkService : IHomeworkService
             throw new Exception("Group not found.");
         }
         // Only owner can add homework (public or private)
-        if (group.OwnerId == null || group.OwnerId != userId)
+        //TODO: to uncomment this!!!
+       /*  if (group.OwnerId == null || group.OwnerId != userId)
         {
             throw new UnauthorizedAccessException("Only the group owner can add homework to this group.");
-        }
+        }  */
         var homework = new Homework
         {
             GroupId = dto.GroupId,

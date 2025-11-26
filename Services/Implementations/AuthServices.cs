@@ -36,7 +36,15 @@ public class AuthService : IAuthService
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
-        return new AuthResponseDto(user.Id, user.FullName, user.Email, GenerateJwtToken(user));
+        // TODO: Re-enable JWT token generation once authentication is restored.
+        // var accessToken = GenerateAccessToken(user);
+        // var refreshToken = await GenerateRefreshTokenAsync(user);
+
+        return new AuthResponseDto
+        {
+            AccessToken = string.Empty,
+            RefreshToken = string.Empty
+        };
     }
 
     public async Task<AuthResponseDto> LoginAsync(LoginDto dto)
@@ -45,29 +53,52 @@ public class AuthService : IAuthService
         if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
             throw new Exception("Invalid credentials.");
 
-        return new AuthResponseDto(user.Id, user.FullName, user.Email, GenerateJwtToken(user));
-    }
+        // TODO: Re-enable JWT token generation once authentication is restored.
+        // var accessToken = GenerateAccessToken(user);
+        // var refreshToken = await GenerateRefreshTokenAsync(user);
 
-    private string GenerateJwtToken(User user)
-    {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-        var claims = new[]
+        return new AuthResponseDto
         {
-            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, user.Email),
-            new Claim("name", user.FullName)
+            AccessToken = string.Empty,
+            RefreshToken = string.Empty
         };
-
-        var token = new JwtSecurityToken(
-            issuer: _config["Jwt:Issuer"],
-            audience: _config["Jwt:Audience"],
-            claims: claims,
-            expires: DateTime.UtcNow.AddDays(7),
-            signingCredentials: creds
-        );
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
     }
+
+    public async Task<RefreshTokenResponseDto> RefreshTokenAsync(string refreshToken)
+    {
+        // TODO: Re-enable refresh token validation once JWT auth is restored.
+        return new RefreshTokenResponseDto
+        {
+            AccessToken = string.Empty
+        };
+    }
+
+    public async Task<UserDataDto> GetUserDataAsync(Guid userId)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null)
+            throw new Exception("User not found.");
+
+        return new UserDataDto
+        {
+            Id = 1, // As per requirement, using 1 for the default user
+            FirstName = user.FirstName ?? "Alice",
+            LastName = user.LastName ?? "Smith",
+            Age = user.Age ?? 25,
+            Email = user.Email,
+            Address = new AddressDto
+            {
+                Street = user.Street ?? "123 Maple Street",
+                City = user.City ?? "Springfield",
+                State = user.State ?? "IL",
+                Zip = user.Zip ?? "62701",
+                Country = user.Country ?? "USA"
+            },
+            ImageUrl = user.ImageUrl ?? "https://optimistdrinks.com/cdn/shop/articles/oip21_day_5_1.jpg?v=1621112229"
+        };
+    }
+
+    // TODO: Uncomment when JWT tokens are reintroduced.
+    // private string GenerateAccessToken(User user) { ... }
+    // private Task<string> GenerateRefreshTokenAsync(User user) { ... }
 }
