@@ -17,6 +17,7 @@ builder.Services.AddDbContext<TimelyDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Add Services
+builder.Services.AddSingleton<FcmService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IGroupService, GroupService>();
 builder.Services.AddScoped<IHomeworkService, HomeworkService>();
@@ -24,6 +25,7 @@ builder.Services.AddScoped<IScheduleService, ScheduleService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<NotificationJob>(); // Add this
 builder.Services.AddScoped<HomeworkCleanupJob>(); // Register HomeworkCleanupJob
+builder.Services.AddScoped<ImageCompressionService>(); // Image compression service
 builder.Services.AddHttpClient();
 
 // CORS
@@ -168,6 +170,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend"); 
+
+// Enable static file serving for uploaded images
+app.UseStaticFiles();
 
 app.UseAuthentication();
 app.UseAuthorization();

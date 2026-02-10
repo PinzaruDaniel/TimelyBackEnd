@@ -26,24 +26,24 @@ public class AuthService : IAuthService
         if (await _context.Users.AnyAsync(u => u.Email == dto.Email))
             throw new Exception("Email already registered.");
 
+        var (refreshToken, refreshExpiresAt) = GenerateRefreshToken();
+
         var user = new User
         {
             FullName = dto.Name,
             Email = dto.Email,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password)
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+            RefreshToken = refreshToken,
+            RefreshTokenExpiresAt = refreshExpiresAt
         };
 
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
-        // TODO: Re-enable JWT token generation once authentication is restored.
-        // var accessToken = GenerateAccessToken(user);
-        // var refreshToken = await GenerateRefreshTokenAsync(user);
-
         return new AuthResponseDto
         {
-            AccessToken = string.Empty,
-            RefreshToken = string.Empty
+            AccessToken = GenerateAccessToken(user),
+            RefreshToken = refreshToken
         };
     }
 
@@ -53,23 +53,38 @@ public class AuthService : IAuthService
         if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
             throw new Exception("Invalid credentials.");
 
-        // TODO: Re-enable JWT token generation once authentication is restored.
-        // var accessToken = GenerateAccessToken(user);
-        // var refreshToken = await GenerateRefreshTokenAsync(user);
+        var (refreshToken, refreshExpiresAt) = GenerateRefreshToken();
+        user.RefreshToken = refreshToken;
+        user.RefreshTokenExpiresAt = refreshExpiresAt;
+        await _context.SaveChangesAsync();
 
         return new AuthResponseDto
         {
-            AccessToken = string.Empty,
-            RefreshToken = string.Empty
+            AccessToken = GenerateAccessToken(user),
+            RefreshToken = refreshToken
         };
     }
 
     public async Task<RefreshTokenResponseDto> RefreshTokenAsync(string refreshToken)
     {
-        // TODO: Re-enable refresh token validation once JWT auth is restored.
+        if (string.IsNullOrWhiteSpace(refreshToken))
+        {
+            throw new Exception("Refresh token is required.");
+        }
+
+        var user = await _context.Users.FirstOrDefaultAsync(u =>
+            u.RefreshToken == refreshToken &&
+            u.RefreshTokenExpiresAt.HasValue &&
+            u.RefreshTokenExpiresAt > DateTime.UtcNow);
+
+        if (user == null)
+        {
+            throw new Exception("Invalid or expired refresh token.");
+        }
+
         return new RefreshTokenResponseDto
         {
-            AccessToken = string.Empty
+            AccessToken = GenerateAccessToken(user)
         };
     }
 
@@ -98,7 +113,63 @@ public class AuthService : IAuthService
         };
     }
 
-    // TODO: Uncomment when JWT tokens are reintroduced.
-    // private string GenerateAccessToken(User user) { ... }
-    // private Task<string> GenerateRefreshTokenAsync(User user) { ... }
+    private string GenerateAccessToken(User user)
+    {
+        var jwtKey = _config["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key is not configured");
+        var jwtIssuer = _config["Jwt:Issuer"];
+        var jwtAudience = _config["Jwt:Audience"];
+
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Name, user.FullName ?? user.Email),
+            new Claim(ClaimTypes.Email, user.Email)
+        };
+
+        if (!string.IsNullOrWhiteSpace(user.Role))
+        {
+            claims.Add(new Claim(ClaimTypes.Role, user.Role));
+        }
+
+        var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+        var credentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
+
+        var token = new JwtSecurityToken(
+            issuer: jwtIssuer,
+            audience: jwtAudience,
+            claims: claims,
+            expires: DateTime.UtcNow.AddHours(1),
+            signingCredentials: credentials);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    private (string Token, DateTime ExpiresAt) GenerateRefreshToken()
+    {
+        var jwtKey = _config["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key is not configured");
+        var jwtIssuer = _config["Jwt:Issuer"];
+        var jwtAudience = _config["Jwt:Audience"];
+
+        var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+        var credentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
+
+        // TODO: adjust the refresh token lifetime (in minutes) if needed
+        var expiresAt = DateTime.UtcNow.AddMinutes(10);
+
+        var claims = new List<Claim>
+        {
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new("typ", "refresh")
+        };
+
+        var token = new JwtSecurityToken(
+            issuer: jwtIssuer,
+            audience: jwtAudience,
+            claims: claims,
+            expires: expiresAt,
+            signingCredentials: credentials);
+
+        var refreshToken = new JwtSecurityTokenHandler().WriteToken(token);
+        return (refreshToken, expiresAt);
+    }
 }

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
@@ -34,15 +35,23 @@ public class ScheduleController : ControllerBase
     }
 
     [HttpGet("group/{groupId}")]
-    public async Task<IActionResult> GetScheduleByGroup(Guid groupId)
+    public async Task<IActionResult> GetScheduleByGroup(Guid groupId, [FromQuery] string? weekParity = null)
     {
+        var isEvenWeek = ResolveWeekParity(weekParity);
+
+        // Return mock schedule for specific group ID
+        if (groupId == Guid.Parse("cb41031e-f64e-484b-a38b-3ac7c6995c38"))
+        {
+            return Ok(BuildMockScheduleResponse(isEvenWeek));
+        }
+
         var schedule = await _scheduleService.GetScheduleByGroupAsync(groupId);
         if (schedule == null)
         {
-            return Ok(BuildMockScheduleResponse());
+            return Ok(BuildMockScheduleResponse(isEvenWeek));
         }
 
-        var response = BuildScheduleResponse(schedule.GroupName, schedule.GroupId, schedule.ScheduleEntries);
+        var response = BuildScheduleResponse(schedule.GroupName, schedule.GroupId, schedule.ScheduleEntries, isEvenWeek);
         return Ok(response);
     }
 
@@ -131,7 +140,7 @@ public class ScheduleController : ControllerBase
 
         foreach (var property in doc.RootElement.EnumerateObject())
         {
-            if (property.NameEquals("group") || property.NameEquals("group_id") || property.Value.ValueKind != JsonValueKind.Array)
+            if (property.NameEquals("group") || property.NameEquals("groupId") || property.Value.ValueKind != JsonValueKind.Array)
             {
                 continue;
             }
@@ -171,22 +180,25 @@ public class ScheduleController : ControllerBase
         return defaultValue;
     }
 
-    private static Dictionary<string, object?> BuildScheduleResponse(string groupName, object groupIdentifier, IEnumerable<ScheduleEntryDto> entries)
+    private static Dictionary<string, object?> BuildScheduleResponse(string groupName, object groupIdentifier, IEnumerable<ScheduleEntryDto> entries, bool isEvenWeek)
     {
         var response = new Dictionary<string, object?>
         {
             ["group"] = groupName,
-            ["group_id"] = groupIdentifier
+            ["groupId"] = groupIdentifier
         };
 
-        var groupedEntries = entries
+        var filteredEntries = entries
+            .Where(e => ShouldIncludeThisWeek(e.Period, isEvenWeek));
+
+        var groupedEntries = filteredEntries
             .GroupBy(e => e.DayOfWeek)
             .OrderBy(g => DayOrder.TryGetValue(g.Key, out var order) ? order : int.MaxValue);
 
         foreach (var dayGroup in groupedEntries)
         {
             var dayEntries = dayGroup
-                .OrderBy(e => e.Time)
+                .OrderBy(e => ParseStartTime(e.Time))
                 .Select(e => new ScheduleDayEntryDto(e.Time, e.Subject, e.Teacher, e.Room, e.Period))
                 .ToList();
 
@@ -196,14 +208,14 @@ public class ScheduleController : ControllerBase
         return response;
     }
 
-    private static Dictionary<string, object?> BuildMockScheduleResponse()
+    private static Dictionary<string, object?> BuildMockScheduleResponse(bool isEvenWeek)
     {
         using var doc = JsonDocument.Parse(MockScheduleJson);
         var root = doc.RootElement;
         var groupName = root.TryGetProperty("group", out var groupProp) ? groupProp.GetString() ?? "Mock Group" : "Mock Group";
 
-        object groupIdValue = 6869;
-        if (root.TryGetProperty("group_id", out var groupIdProp))
+        object groupIdValue = "cb41031e-f64e-484b-a38b-3ac7c6995c38";
+        if (root.TryGetProperty("groupId", out var groupIdProp))
         {
             if (groupIdProp.ValueKind == JsonValueKind.Number && groupIdProp.TryGetInt64(out var idLong))
             {
@@ -211,19 +223,20 @@ public class ScheduleController : ControllerBase
             }
             else if (groupIdProp.ValueKind == JsonValueKind.String)
             {
-                groupIdValue = groupIdProp.GetString() ?? "6869";
+                groupIdValue = groupIdProp.GetString() ??"cb41031e-f64e-484b-a38b-3ac7c6995c38";
             }
         }
 
         var entries = ParseScheduleFromJson(MockScheduleJson).ScheduleEntries
+            .Where(e => ShouldIncludeThisWeek(e.Period, isEvenWeek))
             .Select(e => new ScheduleEntryDto(e.DayOfWeek, e.Time, e.Subject, e.Teacher, e.Room, e.Period));
 
-        return BuildScheduleResponse(groupName, groupIdValue, entries);
+        return BuildScheduleResponse(groupName, groupIdValue, entries, isEvenWeek);
     }
 
     private const string MockScheduleJson = @"{
     ""group"": ""PAPP-231"",
-    ""group_id"": 6869,
+    ""groupId"": ""cb41031e-f64e-484b-a38b-3ac7c6995c38"",
     ""Luni"": [
         {
             ""time"": ""11:30-13:00"",
@@ -254,7 +267,7 @@ public class ScheduleController : ControllerBase
             ""period"": ""even_week""
         }
     ],
-    ""Marți"": [
+    ""Marti"": [
         {
             ""time"": ""9:45-11:15"",
             ""subject"": ""Limba franceză"",
@@ -361,4 +374,61 @@ public class ScheduleController : ControllerBase
         }
     ]
 }";
+
+    private static bool ShouldIncludeThisWeek(string period, bool isEvenWeek)
+    {
+        if (string.IsNullOrWhiteSpace(period))
+        {
+            return true;
+        }
+
+        return period.ToLowerInvariant() switch
+        {
+            "every_week" => true,
+            "even_week" => !isEvenWeek,
+            "odd_week" => isEvenWeek,
+            _ => true
+        };
+    }
+
+    private static bool IsEvenWeek(DateTime date)
+    {
+        // ISO 8601 week number
+        var calendar = CultureInfo.InvariantCulture.Calendar;
+        var week = calendar.GetWeekOfYear(date, CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
+        return week % 2 == 0;
+    }
+
+    private static bool ResolveWeekParity(string? weekParity)
+    {
+        if (!string.IsNullOrWhiteSpace(weekParity))
+        {
+            var normalized = weekParity.Trim().ToLowerInvariant();
+            if (normalized is "even" or "e")
+                return true;
+            if (normalized is "odd" or "o")
+                return false;
+        }
+
+        // Fallback to computed week parity (current assumption: this week is even)
+        return IsEvenWeek(DateTime.UtcNow);
+    }
+
+    private static TimeSpan ParseStartTime(string timeRange)
+    {
+        if (string.IsNullOrWhiteSpace(timeRange))
+        {
+            return TimeSpan.MaxValue;
+        }
+
+        var dashIndex = timeRange.IndexOf('-');
+        var startPart = dashIndex > 0 ? timeRange[..dashIndex] : timeRange;
+
+        if (TimeSpan.TryParse(startPart, out var start))
+        {
+            return start;
+        }
+
+        return TimeSpan.MaxValue;
+    }
 }
