@@ -19,7 +19,7 @@ public class GroupController : ControllerBase
     }
 
     [HttpPost("create")]
-    [Authorize]
+    [AllowAnonymous] //TODO: to uncomment this!!!
     public async Task<IActionResult> CreateGroup([FromBody] CreateGroupDto dto)
     {
         // For private groups, require authentication and set OwnerId from JWT

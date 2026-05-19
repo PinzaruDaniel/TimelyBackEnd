@@ -23,32 +23,59 @@ public class HomeworkService : IHomeworkService
             throw new Exception("Group not found.");
         }
         // Only owner can add homework (public or private)
-        if (group.OwnerId == null || group.OwnerId != userId)
+        //TODO: to uncomment this!!!
+       /*  if (group.OwnerId == null || group.OwnerId != userId)
         {
             throw new UnauthorizedAccessException("Only the group owner can add homework to this group.");
+        }  */
+        
+        // Handle DueDate - accept date-only (time is optional)
+        // If timezone offset is provided, we still just use the date part
+        DateTime? dueDateUtc = null;
+        if (dto.DueDate.HasValue)
+        {
+            // Extract just the date part (ignore time)
+            var dateOnly = dto.DueDate.Value.Date;
+            // Store as midnight UTC
+            dueDateUtc = DateTime.SpecifyKind(dateOnly, DateTimeKind.Utc);
         }
+        
         var homework = new Homework
         {
             GroupId = dto.GroupId,
             CreatedById = userId,
             Subject = dto.Subject,
             Description = dto.Description,
-            DueDate = dto.DueDate
+            DueDate = dueDateUtc,
+            ImageUrl = dto.ImageUrl
         };
         _context.Homeworks.Add(homework);
         await _context.SaveChangesAsync();
         var createdByUser = await _context.Users.FindAsync(userId);
         var createdByName = createdByUser?.FullName ?? "Unknown";
-        return new HomeworkDto(homework.Id, homework.Subject, homework.Description, homework.CreatedAt, homework.DueDate, createdByName);
+        
+        // Convert DateTime? to DateOnly? for response
+        DateOnly? dueDateOnly = homework.DueDate.HasValue 
+            ? DateOnly.FromDateTime(homework.DueDate.Value) 
+            : null;
+        
+        return new HomeworkDto(homework.Id, homework.Subject, homework.Description, homework.CreatedAt, dueDateOnly, createdByName, homework.ImageUrl);
     }
 
     public async Task<List<HomeworkDto>> GetHomeworksForGroupAsync(Guid groupId)
     {
-        return await _context.Homeworks
+        var homeworks = await _context.Homeworks
             .Where(h => h.GroupId == groupId)
             .Include(h => h.CreatedBy)
-            .Select(h => new HomeworkDto(h.Id, h.Subject, h.Description, h.CreatedAt, h.DueDate, h.CreatedBy.FullName))
             .ToListAsync();
+        
+        return homeworks.Select(h => 
+        {
+            DateOnly? dueDateOnly = h.DueDate.HasValue 
+                ? DateOnly.FromDateTime(h.DueDate.Value) 
+                : null;
+            return new HomeworkDto(h.Id, h.Subject, h.Description, h.CreatedAt, dueDateOnly, h.CreatedBy.FullName, h.ImageUrl);
+        }).ToList();
     }
 
     public async Task MarkHomeworkDoneAsync(Guid homeworkId)
