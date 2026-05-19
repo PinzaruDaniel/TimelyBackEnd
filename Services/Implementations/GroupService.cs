@@ -17,11 +17,30 @@ public class GroupService : IGroupService
 
     public async Task<GroupDto> CreateGroupAsync(CreateGroupDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.Name))
+        {
+            throw new Exception("Group name is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.SchoolName))
+        {
+            throw new Exception("School name is required.");
+        }
+
+        if (!dto.OwnerId.HasValue)
+        {
+            throw new Exception("Owner is required.");
+        }
+
+        var owner = await _context.Users.FirstOrDefaultAsync(u => u.Id == dto.OwnerId.Value)
+            ?? throw new Exception("Owner not found.");
+
         string? inviteCode = null;
         if (!dto.IsPrivate)
         {
             inviteCode = await GenerateUniqueInviteCodeAsync();
         }
+
         var group = new Group
         {
             Name = dto.Name,
@@ -30,7 +49,16 @@ public class GroupService : IGroupService
             IsPrivate = dto.IsPrivate,
             OwnerId = dto.OwnerId
         };
+
         _context.Groups.Add(group);
+        await _context.SaveChangesAsync();
+
+        owner.GroupId = group.Id;
+        if (!group.Users.Any(u => u.Id == owner.Id))
+        {
+            group.Users.Add(owner);
+        }
+
         await _context.SaveChangesAsync();
 
         var userIds = group.Users.Select(u => u.Id).ToList();
@@ -88,9 +116,19 @@ public class GroupService : IGroupService
             throw new Exception("User not found.");
         }
 
-        user.GroupId = group.Id;
+        if (user.GroupId != group.Id)
+        {
+            user.GroupId = group.Id;
+        }
+
+        if (!group.Users.Any(u => u.Id == user.Id))
+        {
+            group.Users.Add(user);
+        }
+
         await _context.SaveChangesAsync();
 
- var userIds = group.Users.Select(u => u.Id).ToList();
-     return new GroupDto(group.Id, group.Name, group.SchoolName, group.InviteCode ?? string.Empty, group.IsPrivate, group.OwnerId, userIds);    }
+        var userIds = group.Users.Select(u => u.Id).ToList();
+     return new GroupDto(group.Id, group.Name, group.SchoolName, group.InviteCode ?? string.Empty, group.IsPrivate, group.OwnerId, userIds);
+    }
 }

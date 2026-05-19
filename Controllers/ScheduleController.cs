@@ -15,6 +15,7 @@ namespace TimelyBackEnd.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class ScheduleController : ControllerBase
 {
     private readonly IScheduleService _scheduleService;

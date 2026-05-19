@@ -2,13 +2,13 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TimelyBackEnd.DTOs.Group;
 using TimelyBackEnd.Services.Interfaces;
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
 namespace TimelyBackEnd.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class GroupController : ControllerBase
 {
     private readonly IGroupService _groupService;
@@ -19,19 +19,15 @@ public class GroupController : ControllerBase
     }
 
     [HttpPost("create")]
-    [AllowAnonymous] //TODO: to uncomment this!!!
     public async Task<IActionResult> CreateGroup([FromBody] CreateGroupDto dto)
     {
-        // For private groups, require authentication and set OwnerId from JWT
-        if (dto.IsPrivate)
+        var userId = GetUserIdOrUnauthorized();
+        if (userId == null)
         {
-            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var ownerId))
-            {
-                return Unauthorized();
-            }
-            dto.OwnerId = ownerId;
+            return Unauthorized();
         }
+
+        dto.OwnerId = userId.Value;
         var group = await _groupService.CreateGroupAsync(dto);
         return Ok(group);
     }
@@ -51,22 +47,33 @@ public class GroupController : ControllerBase
     }
 
     [HttpPost("join")]
-    [AllowAnonymous]
     public async Task<IActionResult> JoinGroup([FromBody] JoinGroupDto dto)
     {
-        if (dto.UserId == Guid.Empty || string.IsNullOrWhiteSpace(dto.InviteCode))
+        var userId = GetUserIdOrUnauthorized();
+        if (userId == null)
         {
-            return BadRequest(new { error = "userId and inviteCode are required." });
+            return Unauthorized();
+        }
+
+        if (string.IsNullOrWhiteSpace(dto.InviteCode))
+        {
+            return BadRequest(new { error = "inviteCode is required." });
         }
 
         try
         {
-            var result = await _groupService.JoinGroupByInviteCodeAsync(dto.UserId, dto.InviteCode);
+            var result = await _groupService.JoinGroupByInviteCodeAsync(userId.Value, dto.InviteCode);
             return Ok(result);
         }
         catch (Exception ex)
         {
             return BadRequest(new { error = ex.Message });
         }
+    }
+
+    private Guid? GetUserIdOrUnauthorized()
+    {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(userIdClaim, out var userId) ? userId : null;
     }
 }

@@ -9,6 +9,7 @@ namespace TimelyBackEnd.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class HomeworkController : ControllerBase
 {
     private readonly IHomeworkService _homeworkService;
@@ -27,9 +28,14 @@ public class HomeworkController : ControllerBase
 
     [HttpPost("add")]
     [RequestSizeLimit(20 * 1024 * 1024)] // 20 MB limit for original file (will be compressed)
-    //[Authorize]
     public async Task<IActionResult> AddHomework([FromForm] CreateHomeworkFormDto dto)
     {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdClaim, out var userId))
+        {
+            return Unauthorized();
+        }
+
         string? imageUrl = null;
 
         // Handle photo upload if provided
@@ -100,11 +106,11 @@ public class HomeworkController : ControllerBase
             Subject = dto.Subject,
             Description = dto.Description,
             DueDate = dueDate,
-            UserId = dto.UserId,
+            UserId = userId,
             ImageUrl = imageUrl
         };
 
-        var homework = await _homeworkService.AddHomeworkAsync(createDto, dto.UserId);
+        var homework = await _homeworkService.AddHomeworkAsync(createDto, userId);
         return Ok(homework);
     }
 
@@ -165,7 +171,6 @@ public class HomeworkController : ControllerBase
     }
 
     [HttpPut("{id}/done")]
-        [Authorize]
     public async Task<IActionResult> MarkHomeworkDone(Guid id)
     {
         await _homeworkService.MarkHomeworkDoneAsync(id);

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Linq;
 using Quartz;
 using TimelyBackEnd.Data;
 using TimelyBackEnd.Services;
@@ -9,6 +10,7 @@ using TimelyBackEnd.Services.Jobs;
 using TimelyBackEnd.Services.Interfaces;
 using TimelyBackEnd.Services.Implementations;
 using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,9 +24,10 @@ builder.Services.AddScoped<IGroupService, GroupService>();
 builder.Services.AddScoped<IHomeworkService, HomeworkService>();
 builder.Services.AddScoped<IScheduleService, ScheduleService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<NotificationJob>(); // Add this
 builder.Services.AddScoped<HomeworkCleanupJob>(); // Register HomeworkCleanupJob
-
+builder.Services.AddScoped<FcmService>();
 // CORS
 builder.Services.AddCors(options =>
 {
@@ -88,7 +91,24 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 // Controllers
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var errors = context.ModelState
+                .Where(entry => entry.Value?.Errors.Count > 0)
+                .ToDictionary(
+                    entry => entry.Key,
+                    entry => entry.Value!.Errors.Select(e => e.ErrorMessage).ToArray());
+
+            return new BadRequestObjectResult(new
+            {
+                error = "Validation failed.",
+                details = errors
+            });
+        };
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
