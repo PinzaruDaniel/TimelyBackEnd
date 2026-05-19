@@ -1,26 +1,25 @@
 {
   "format": 1,
   "restore": {
-    "/Users/pinzaru/projects/Timely/TimelyBackEnd/TimelyBackEnd.csproj": {}
+    "/home/runner/work/TimelyBackEnd/TimelyBackEnd/TimelyBackEnd.csproj": {}
   },
   "projects": {
-    "/Users/pinzaru/projects/Timely/TimelyBackEnd/TimelyBackEnd.csproj": {
+    "/home/runner/work/TimelyBackEnd/TimelyBackEnd/TimelyBackEnd.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/Users/pinzaru/projects/Timely/TimelyBackEnd/TimelyBackEnd.csproj",
+        "projectUniqueName": "/home/runner/work/TimelyBackEnd/TimelyBackEnd/TimelyBackEnd.csproj",
         "projectName": "TimelyBackEnd",
-        "projectPath": "/Users/pinzaru/projects/Timely/TimelyBackEnd/TimelyBackEnd.csproj",
-        "packagesPath": "/Users/pinzaru/.nuget/packages/",
-        "outputPath": "/Users/pinzaru/projects/Timely/TimelyBackEnd/obj/",
+        "projectPath": "/home/runner/work/TimelyBackEnd/TimelyBackEnd/TimelyBackEnd.csproj",
+        "packagesPath": "/home/runner/.nuget/packages/",
+        "outputPath": "/home/runner/work/TimelyBackEnd/TimelyBackEnd/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "/Users/pinzaru/.nuget/NuGet/NuGet.Config"
+          "/home/runner/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net9.0"
         ],
         "sources": {
-          "/opt/homebrew/Cellar/dotnet/9.0.8/libexec/library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -39,7 +38,7 @@
           "auditLevel": "low",
           "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "9.0.100"
+        "SdkAnalysisLevel": "10.0.200"
       },
       "frameworks": {
         "net9.0": {
@@ -103,7 +102,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/opt/homebrew/Cellar/dotnet/9.0.8/libexec/sdk/9.0.109/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.201/PortableRuntimeIdentifierGraph.json"
         }
       }
     }
