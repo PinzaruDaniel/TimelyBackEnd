@@ -63,7 +63,7 @@ namespace TimelyBackEnd.Services.Implementations
                 Data = data
             };
 
-            await FirebaseMessaging.DefaultInstance.SendMulticastAsync(message);
+            await FirebaseMessaging.DefaultInstance.SendEachForMulticastAsync(message);
         }
     }
 }

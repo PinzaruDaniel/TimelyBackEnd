@@ -26,9 +26,6 @@ namespace TimelyBackEnd.Models
 
         public ICollection<Homework> Homeworks { get; set; } = new List<Homework>();
         public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
-
-        public string? RefreshToken { get; set; }
-        public DateTime? RefreshTokenExpiresAt { get; set; }
         public string? FcmToken { get; set; }
     }
 }
