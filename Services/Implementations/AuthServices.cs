@@ -36,7 +36,12 @@ public class AuthService : IAuthService
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
-        return new AuthResponseDto(user.Id, user.FullName, user.Email, GenerateJwtToken(user));
+        var tokens = CreateTokenPair(user);
+        user.RefreshToken = tokens.RefreshToken;
+        user.RefreshTokenExpiresAt = tokens.RefreshTokenExpiresAt;
+        await _context.SaveChangesAsync();
+
+        return new AuthResponseDto(user.Id, user.FullName, user.Email, tokens.AccessToken, tokens.RefreshToken);
     }
 
     public async Task<AuthResponseDto> LoginAsync(LoginDto dto)
@@ -45,10 +50,69 @@ public class AuthService : IAuthService
         if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
             throw new Exception("Invalid credentials.");
 
-        return new AuthResponseDto(user.Id, user.FullName, user.Email, GenerateJwtToken(user));
+        var tokens = CreateTokenPair(user);
+        user.RefreshToken = tokens.RefreshToken;
+        user.RefreshTokenExpiresAt = tokens.RefreshTokenExpiresAt;
+        await _context.SaveChangesAsync();
+
+        return new AuthResponseDto(user.Id, user.FullName, user.Email, tokens.AccessToken, tokens.RefreshToken);
     }
 
-    private string GenerateJwtToken(User user)
+    public async Task<TokenPairDto> RefreshTokenAsync(string refreshToken)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken))
+            throw new Exception("Refresh token is required.");
+
+        var principal = GetPrincipalFromToken(refreshToken);
+        if (principal == null)
+            throw new Exception("Invalid refresh token.");
+
+        var tokenType = principal.FindFirst("token_type")?.Value;
+        if (!string.Equals(tokenType, "refresh", StringComparison.OrdinalIgnoreCase))
+            throw new Exception("Invalid refresh token.");
+
+        var userIdValue = principal.FindFirstValue(ClaimTypes.NameIdentifier)
+                         ?? principal.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        if (string.IsNullOrWhiteSpace(userIdValue) || !Guid.TryParse(userIdValue, out var userId))
+            throw new Exception("Invalid refresh token.");
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null || user.RefreshToken != refreshToken || user.RefreshTokenExpiresAt <= DateTime.UtcNow)
+            throw new Exception("Refresh token expired.");
+
+        var tokens = CreateTokenPair(user);
+        user.RefreshToken = tokens.RefreshToken;
+        user.RefreshTokenExpiresAt = tokens.RefreshTokenExpiresAt;
+        await _context.SaveChangesAsync();
+
+        return new TokenPairDto(tokens.AccessToken, tokens.RefreshToken);
+    }
+
+    public async Task ForgotPasswordAsync(ForgotPasswordDto dto)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
+        if (user == null)
+            throw new Exception("User not found.");
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+        user.RefreshToken = null;
+        user.RefreshTokenExpiresAt = null;
+        await _context.SaveChangesAsync();
+    }
+
+    private (string AccessToken, string RefreshToken, DateTime RefreshTokenExpiresAt) CreateTokenPair(User user)
+    {
+        var accessTokenMinutes = _config.GetValue("Jwt:AccessTokenMinutes", 15);
+        var refreshTokenDays = _config.GetValue("Jwt:RefreshTokenDays", 30);
+
+        var accessToken = GenerateJwtToken(user, TimeSpan.FromMinutes(accessTokenMinutes), "access");
+        var refreshTokenExpiresAt = DateTime.UtcNow.AddDays(refreshTokenDays);
+        var refreshToken = GenerateJwtToken(user, TimeSpan.FromDays(refreshTokenDays), "refresh");
+
+        return (accessToken, refreshToken, refreshTokenExpiresAt);
+    }
+
+    private string GenerateJwtToken(User user, TimeSpan lifetime, string tokenType)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -56,18 +120,53 @@ public class AuthService : IAuthService
         var claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
-            new Claim("name", user.FullName)
+            new Claim(ClaimTypes.Name, user.FullName),
+            new Claim("token_type", tokenType),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
         var token = new JwtSecurityToken(
             issuer: _config["Jwt:Issuer"],
             audience: _config["Jwt:Audience"],
             claims: claims,
-            expires: DateTime.UtcNow.AddDays(7),
+            expires: DateTime.UtcNow.Add(lifetime),
             signingCredentials: creds
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    private ClaimsPrincipal? GetPrincipalFromToken(string token)
+    {
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
+        var validationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = _config["Jwt:Issuer"],
+            ValidAudience = _config["Jwt:Audience"],
+            IssuerSigningKey = key
+        };
+
+        try
+        {
+            var principal = tokenHandler.ValidateToken(token, validationParameters, out var validatedToken);
+            if (validatedToken is not JwtSecurityToken jwtToken ||
+                !jwtToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return principal;
+        }
+        catch
+        {
+            return null;
+        }
     }
 }

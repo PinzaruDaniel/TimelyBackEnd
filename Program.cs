@@ -61,10 +61,15 @@ builder.Services.AddQuartzHostedService(opt => opt.WaitForJobsToComplete = true)
 var jwtKey = builder.Configuration["Jwt:Key"];
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
+var saasAppToken = builder.Configuration["Saas:AppToken"];
 
 if (string.IsNullOrEmpty(jwtKey))
 {
     throw new InvalidOperationException("JWT Key is not configured");
+}
+if (string.IsNullOrWhiteSpace(saasAppToken))
+{
+    throw new InvalidOperationException("Saas AppToken is not configured");
 }
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -127,6 +132,25 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend"); 
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path;
+    if (path.StartsWithSegments("/swagger") || path.StartsWithSegments("/api/Auth"))
+    {
+        await next();
+        return;
+    }
+
+    if (!context.Request.Headers.TryGetValue("saas-App-Token", out var providedToken) ||
+        !string.Equals(providedToken, saasAppToken, StringComparison.Ordinal))
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        await context.Response.WriteAsJsonAsync(new { error = "Invalid app token." });
+        return;
+    }
+
+    await next();
+});
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
