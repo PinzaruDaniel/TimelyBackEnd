@@ -1,6 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 using TimelyBackEnd.DTOs.Auth;
 using TimelyBackEnd.Services.Interfaces;
 
@@ -59,24 +57,17 @@ public class AuthController : ControllerBase
         }
     }
 
-    [HttpGet("user")]
-    [Authorize]
-    public async Task<IActionResult> GetUserData()
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
     {
         try
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
-            {
-                return Unauthorized();
-            }
-
-            var userData = await _authService.GetUserDataAsync(userId);
-            return Ok(userData);
+            await _authService.ForgotPasswordAsync(dto);
+            return Ok(new { message = "Password reset successfully." });
         }
         catch (Exception ex)
         {
-            return NotFound(new { error = ex.Message });
+            return BadRequest(new { error = ex.Message });
         }
     }
 }

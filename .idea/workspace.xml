@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="5c5c6206-f64e-457c-bc1d-41cc6b2f9255" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/Controllers/HomeworkController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Controllers/HomeworkController.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Controllers/ScheduleController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Controllers/ScheduleController.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DTOs/Homework/CreateHomeworksDto.cs" beforeDir="false" afterPath="$PROJECT_DIR$/DTOs/Homework/CreateHomeworksDto.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/DTOs/Homework/HomeworkDto.cs" beforeDir="false" afterPath="$PROJECT_DIR$/DTOs/Homework/HomeworkDto.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Migrations/TimelyDbContextModelSnapshot.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Migrations/TimelyDbContextModelSnapshot.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Models/Homework.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Models/Homework.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Models/User.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Models/User.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Program.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Program.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Properties/launchSettings.json" beforeDir="false" afterPath="$PROJECT_DIR$/Properties/launchSettings.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Services/Implementations/AuthServices.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Services/Implementations/AuthServices.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Services/Implementations/HomeworkService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Services/Implementations/HomeworkService.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/TimelyBackEnd.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/TimelyBackEnd.csproj" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/appsettings.json" beforeDir="false" afterPath="$PROJECT_DIR$/appsettings.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/bin/Debug/net9.0/TimelyBackEnd.deps.json" beforeDir="false" afterPath="$PROJECT_DIR$/bin/Debug/net9.0/TimelyBackEnd.deps.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/bin/Debug/net9.0/TimelyBackEnd.dll" beforeDir="false" afterPath="$PROJECT_DIR$/bin/Debug/net9.0/TimelyBackEnd.dll" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/bin/Debug/net9.0/TimelyBackEnd.pdb" beforeDir="false" afterPath="$PROJECT_DIR$/bin/Debug/net9.0/TimelyBackEnd.pdb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/bin/Debug/net9.0/TimelyBackEnd.staticwebassets.endpoints.json" beforeDir="false" afterPath="$PROJECT_DIR$/bin/Debug/net9.0/TimelyBackEnd.staticwebassets.endpoints.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/bin/Debug/net9.0/appsettings.json" beforeDir="false" afterPath="$PROJECT_DIR$/bin/Debug/net9.0/appsettings.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/Debug/net9.0/TimelyBackEnd.AssemblyInfo.cs" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net9.0/TimelyBackEnd.AssemblyInfo.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/Debug/net9.0/TimelyBackEnd.AssemblyInfoInputs.cache" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net9.0/TimelyBackEnd.AssemblyInfoInputs.cache" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/Debug/net9.0/TimelyBackEnd.assets.cache" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net9.0/TimelyBackEnd.assets.cache" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/Debug/net9.0/TimelyBackEnd.csproj.AssemblyReference.cache" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net9.0/TimelyBackEnd.csproj.AssemblyReference.cache" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/Debug/net9.0/TimelyBackEnd.csproj.CoreCompileInputs.cache" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net9.0/TimelyBackEnd.csproj.CoreCompileInputs.cache" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/Debug/net9.0/TimelyBackEnd.csproj.FileListAbsolute.txt" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net9.0/TimelyBackEnd.csproj.FileListAbsolute.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/Debug/net9.0/TimelyBackEnd.dll" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net9.0/TimelyBackEnd.dll" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/Debug/net9.0/TimelyBackEnd.pdb" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net9.0/TimelyBackEnd.pdb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/Debug/net9.0/TimelyBackEnd.sourcelink.json" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net9.0/TimelyBackEnd.sourcelink.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/Debug/net9.0/ref/TimelyBackEnd.dll" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net9.0/ref/TimelyBackEnd.dll" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/Debug/net9.0/refint/TimelyBackEnd.dll" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net9.0/refint/TimelyBackEnd.dll" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/Debug/net9.0/staticwebassets.build.endpoints.json" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net9.0/staticwebassets.build.endpoints.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/Debug/net9.0/staticwebassets.build.json" beforeDir="false" afterPath="$PROJECT_DIR$/obj/Debug/net9.0/staticwebassets.build.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/TimelyBackEnd.csproj.nuget.dgspec.json" beforeDir="false" afterPath="$PROJECT_DIR$/obj/TimelyBackEnd.csproj.nuget.dgspec.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/TimelyBackEnd.csproj.nuget.g.props" beforeDir="false" afterPath="$PROJECT_DIR$/obj/TimelyBackEnd.csproj.nuget.g.props" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/project.assets.json" beforeDir="false" afterPath="$PROJECT_DIR$/obj/project.assets.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/obj/project.nuget.cache" beforeDir="false" afterPath="$PROJECT_DIR$/obj/project.nuget.cache" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 3
+}]]></component>
+  <component name="ProjectId" id="38IaLCJAc47BSu4pAnNI24Vs6lw" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "dart.analysis.tool.window.visible": "false",
+    "git-widget-placeholder": "feature/refresh-tokens",
+    "javascript.preferred.runtime.type.id": "node",
+    "nodejs_package_manager_path": "npm",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-js-predefined-d6986cc7102b-9b0f141eb926-JavaScript-WS-253.29346.242" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="5c5c6206-f64e-457c-bc1d-41cc6b2f9255" name="Changes" comment="" />
+      <created>1768489481751</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1768489481751</updated>
+      <workItem from="1768489483127" duration="13000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+</project>

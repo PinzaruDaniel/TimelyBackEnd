@@ -17,7 +17,6 @@ builder.Services.AddDbContext<TimelyDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Add Services
-builder.Services.AddSingleton<FcmService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IGroupService, GroupService>();
 builder.Services.AddScoped<IHomeworkService, HomeworkService>();
@@ -25,8 +24,6 @@ builder.Services.AddScoped<IScheduleService, ScheduleService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<NotificationJob>(); // Add this
 builder.Services.AddScoped<HomeworkCleanupJob>(); // Register HomeworkCleanupJob
-builder.Services.AddScoped<ImageCompressionService>(); // Image compression service
-builder.Services.AddHttpClient();
 
 // CORS
 builder.Services.AddCors(options =>
@@ -60,14 +57,19 @@ builder.Services.AddQuartz(q =>
 });
 builder.Services.AddQuartzHostedService(opt => opt.WaitForJobsToComplete = true);
 
-// JWT authentication
+// Authentication (JWT)
 var jwtKey = builder.Configuration["Jwt:Key"];
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
+var saasAppToken = builder.Configuration["Saas:AppToken"];
 
 if (string.IsNullOrEmpty(jwtKey))
 {
     throw new InvalidOperationException("JWT Key is not configured");
+}
+if (string.IsNullOrWhiteSpace(saasAppToken))
+{
+    throw new InvalidOperationException("Saas AppToken is not configured");
 }
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -120,46 +122,6 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// Seed default user if it doesn't exist
-using (var scope = app.Services.CreateScope())
-{
-    var context = scope.ServiceProvider.GetRequiredService<TimelyDbContext>();
-    try
-    {
-        await context.Database.EnsureCreatedAsync();
-        
-        var defaultUserEmail = "alice.smith@example.com";
-        if (!await context.Users.AnyAsync(u => u.Email == defaultUserEmail))
-        {
-            var defaultUser = new TimelyBackEnd.Models.User
-            {
-                Id = Guid.NewGuid(),
-                FullName = "Alice Smith",
-                Email = defaultUserEmail,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("123"),
-                FirstName = "Alice",
-                LastName = "Smith",
-                Age = 25,
-                Street = "123 Maple Street",
-                City = "Springfield",
-                State = "IL",
-                Zip = "62701",
-                Country = "USA",
-                ImageUrl = "https://optimistdrinks.com/cdn/shop/articles/oip21_day_5_1.jpg?v=1621112229",
-                Role = "Student"
-            };
-            
-            context.Users.Add(defaultUser);
-            await context.SaveChangesAsync();
-            Console.WriteLine("✅ Default user 'alice.smith@example.com' created successfully!");
-        }
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"⚠️ Error seeding default user: {ex.Message}");
-    }
-}
-
 // Middleware
 if (app.Environment.IsDevelopment())
 {
@@ -170,10 +132,25 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend"); 
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path;
+    if (path.StartsWithSegments("/swagger") || path.StartsWithSegments("/api/Auth"))
+    {
+        await next();
+        return;
+    }
 
-// Enable static file serving for uploaded images
-app.UseStaticFiles();
+    if (!context.Request.Headers.TryGetValue("saas-App-Token", out var providedToken) ||
+        !string.Equals(providedToken, saasAppToken, StringComparison.Ordinal))
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        await context.Response.WriteAsJsonAsync(new { error = "Invalid app token." });
+        return;
+    }
 
+    await next();
+});
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

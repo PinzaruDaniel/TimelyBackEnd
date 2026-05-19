@@ -6,7 +6,7 @@ public interface IAuthService
 {
     Task<AuthResponseDto> RegisterAsync(RegisterDto dto);
     Task<AuthResponseDto> LoginAsync(LoginDto dto);
-    Task<RefreshTokenResponseDto> RefreshTokenAsync(string refreshToken);
-    Task<UserDataDto> GetUserDataAsync(Guid userId);
+    Task<TokenPairDto> RefreshTokenAsync(string refreshToken);
+    Task ForgotPasswordAsync(ForgotPasswordDto dto);
 }
  

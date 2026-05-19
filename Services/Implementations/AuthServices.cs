@@ -26,25 +26,22 @@ public class AuthService : IAuthService
         if (await _context.Users.AnyAsync(u => u.Email == dto.Email))
             throw new Exception("Email already registered.");
 
-        var (refreshToken, refreshExpiresAt) = GenerateRefreshToken();
-
         var user = new User
         {
             FullName = dto.Name,
             Email = dto.Email,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
-            RefreshToken = refreshToken,
-            RefreshTokenExpiresAt = refreshExpiresAt
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password)
         };
 
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
-        return new AuthResponseDto
-        {
-            AccessToken = GenerateAccessToken(user),
-            RefreshToken = refreshToken
-        };
+        var tokens = CreateTokenPair(user);
+        user.RefreshToken = tokens.RefreshToken;
+        user.RefreshTokenExpiresAt = tokens.RefreshTokenExpiresAt;
+        await _context.SaveChangesAsync();
+
+        return new AuthResponseDto(user.Id, user.FullName, user.Email, tokens.AccessToken, tokens.RefreshToken);
     }
 
     public async Task<AuthResponseDto> LoginAsync(LoginDto dto)
@@ -53,123 +50,123 @@ public class AuthService : IAuthService
         if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
             throw new Exception("Invalid credentials.");
 
-        var (refreshToken, refreshExpiresAt) = GenerateRefreshToken();
-        user.RefreshToken = refreshToken;
-        user.RefreshTokenExpiresAt = refreshExpiresAt;
+        var tokens = CreateTokenPair(user);
+        user.RefreshToken = tokens.RefreshToken;
+        user.RefreshTokenExpiresAt = tokens.RefreshTokenExpiresAt;
         await _context.SaveChangesAsync();
 
-        return new AuthResponseDto
-        {
-            AccessToken = GenerateAccessToken(user),
-            RefreshToken = refreshToken
-        };
+        return new AuthResponseDto(user.Id, user.FullName, user.Email, tokens.AccessToken, tokens.RefreshToken);
     }
 
-    public async Task<RefreshTokenResponseDto> RefreshTokenAsync(string refreshToken)
+    public async Task<TokenPairDto> RefreshTokenAsync(string refreshToken)
     {
         if (string.IsNullOrWhiteSpace(refreshToken))
-        {
             throw new Exception("Refresh token is required.");
-        }
 
-        var user = await _context.Users.FirstOrDefaultAsync(u =>
-            u.RefreshToken == refreshToken &&
-            u.RefreshTokenExpiresAt.HasValue &&
-            u.RefreshTokenExpiresAt > DateTime.UtcNow);
+        var principal = GetPrincipalFromToken(refreshToken);
+        if (principal == null)
+            throw new Exception("Invalid refresh token.");
 
-        if (user == null)
-        {
-            throw new Exception("Invalid or expired refresh token.");
-        }
+        var tokenType = principal.FindFirst("token_type")?.Value;
+        if (!string.Equals(tokenType, "refresh", StringComparison.OrdinalIgnoreCase))
+            throw new Exception("Invalid refresh token.");
 
-        return new RefreshTokenResponseDto
-        {
-            AccessToken = GenerateAccessToken(user)
-        };
+        var userIdValue = principal.FindFirstValue(ClaimTypes.NameIdentifier)
+                         ?? principal.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        if (string.IsNullOrWhiteSpace(userIdValue) || !Guid.TryParse(userIdValue, out var userId))
+            throw new Exception("Invalid refresh token.");
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null || user.RefreshToken != refreshToken || user.RefreshTokenExpiresAt <= DateTime.UtcNow)
+            throw new Exception("Refresh token expired.");
+
+        var tokens = CreateTokenPair(user);
+        user.RefreshToken = tokens.RefreshToken;
+        user.RefreshTokenExpiresAt = tokens.RefreshTokenExpiresAt;
+        await _context.SaveChangesAsync();
+
+        return new TokenPairDto(tokens.AccessToken, tokens.RefreshToken);
     }
 
-    public async Task<UserDataDto> GetUserDataAsync(Guid userId)
+    public async Task ForgotPasswordAsync(ForgotPasswordDto dto)
     {
-        var user = await _context.Users.FindAsync(userId);
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
         if (user == null)
             throw new Exception("User not found.");
 
-        return new UserDataDto
-        {
-            Id = 1, // As per requirement, using 1 for the default user
-            FirstName = user.FirstName ?? "Alice",
-            LastName = user.LastName ?? "Smith",
-            Age = user.Age ?? 25,
-            Email = user.Email,
-            Address = new AddressDto
-            {
-                Street = user.Street ?? "123 Maple Street",
-                City = user.City ?? "Springfield",
-                State = user.State ?? "IL",
-                Zip = user.Zip ?? "62701",
-                Country = user.Country ?? "USA"
-            },
-            ImageUrl = user.ImageUrl ?? "https://optimistdrinks.com/cdn/shop/articles/oip21_day_5_1.jpg?v=1621112229"
-        };
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+        user.RefreshToken = null;
+        user.RefreshTokenExpiresAt = null;
+        await _context.SaveChangesAsync();
     }
 
-    private string GenerateAccessToken(User user)
+    private (string AccessToken, string RefreshToken, DateTime RefreshTokenExpiresAt) CreateTokenPair(User user)
     {
-        var jwtKey = _config["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key is not configured");
-        var jwtIssuer = _config["Jwt:Issuer"];
-        var jwtAudience = _config["Jwt:Audience"];
+        var accessTokenMinutes = _config.GetValue("Jwt:AccessTokenMinutes", 15);
+        var refreshTokenDays = _config.GetValue("Jwt:RefreshTokenDays", 30);
 
-        var claims = new List<Claim>
+        var accessToken = GenerateJwtToken(user, TimeSpan.FromMinutes(accessTokenMinutes), "access");
+        var refreshTokenExpiresAt = DateTime.UtcNow.AddDays(refreshTokenDays);
+        var refreshToken = GenerateJwtToken(user, TimeSpan.FromDays(refreshTokenDays), "refresh");
+
+        return (accessToken, refreshToken, refreshTokenExpiresAt);
+    }
+
+    private string GenerateJwtToken(User user, TimeSpan lifetime, string tokenType)
+    {
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var claims = new[]
         {
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(ClaimTypes.Name, user.FullName ?? user.Email),
-            new Claim(ClaimTypes.Email, user.Email)
+            new Claim(JwtRegisteredClaimNames.Email, user.Email),
+            new Claim(ClaimTypes.Name, user.FullName),
+            new Claim("token_type", tokenType),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
-        if (!string.IsNullOrWhiteSpace(user.Role))
-        {
-            claims.Add(new Claim(ClaimTypes.Role, user.Role));
-        }
-
-        var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
-        var credentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
-
         var token = new JwtSecurityToken(
-            issuer: jwtIssuer,
-            audience: jwtAudience,
+            issuer: _config["Jwt:Issuer"],
+            audience: _config["Jwt:Audience"],
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(1),
-            signingCredentials: credentials);
+            expires: DateTime.UtcNow.Add(lifetime),
+            signingCredentials: creds
+        );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    private (string Token, DateTime ExpiresAt) GenerateRefreshToken()
+    private ClaimsPrincipal? GetPrincipalFromToken(string token)
     {
-        var jwtKey = _config["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key is not configured");
-        var jwtIssuer = _config["Jwt:Issuer"];
-        var jwtAudience = _config["Jwt:Audience"];
-
-        var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
-        var credentials = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
-
-        // TODO: adjust the refresh token lifetime (in minutes) if needed
-        var expiresAt = DateTime.UtcNow.AddMinutes(10);
-
-        var claims = new List<Claim>
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
+        var validationParameters = new TokenValidationParameters
         {
-            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new("typ", "refresh")
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = _config["Jwt:Issuer"],
+            ValidAudience = _config["Jwt:Audience"],
+            IssuerSigningKey = key
         };
 
-        var token = new JwtSecurityToken(
-            issuer: jwtIssuer,
-            audience: jwtAudience,
-            claims: claims,
-            expires: expiresAt,
-            signingCredentials: credentials);
+        try
+        {
+            var principal = tokenHandler.ValidateToken(token, validationParameters, out var validatedToken);
+            if (validatedToken is not JwtSecurityToken jwtToken ||
+                !jwtToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
 
-        var refreshToken = new JwtSecurityTokenHandler().WriteToken(token);
-        return (refreshToken, expiresAt);
+            return principal;
+        }
+        catch
+        {
+            return null;
+        }
     }
 }

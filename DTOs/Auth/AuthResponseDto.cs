@@ -1,7 +1,3 @@
 namespace TimelyBackEnd.DTOs.Auth;
 
-public class AuthResponseDto
-{
-    public string AccessToken { get; set; } = string.Empty;
-    public string RefreshToken { get; set; } = string.Empty;
-}
+public record AuthResponseDto(Guid Id, string Name, string Email, string AccessToken, string RefreshToken);
