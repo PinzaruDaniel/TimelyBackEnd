@@ -113,10 +113,26 @@ builder.Services.AddSwaggerGen(c =>
         }
     };
 
+    var saasSecurityScheme = new OpenApiSecurityScheme
+    {
+        Name = "saas-App-Token",
+        Description = "SaaS App Token - provide the saas-App-Token header",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Reference = new OpenApiReference
+        {
+            Type = ReferenceType.SecurityScheme,
+            Id = "SaasAppToken"
+        }
+    };
+
     c.AddSecurityDefinition("Bearer", securityScheme);
+    c.AddSecurityDefinition("SaasAppToken", saasSecurityScheme);
+
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
-        { new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" } }, new string[] { } }
+        { new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" } }, new string[] { } },
+        { new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "SaasAppToken" } }, new string[] { } }
     });
 });
 
@@ -132,15 +148,31 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend"); 
+
+// Ensure JWT authentication runs before we validate the SaaS app token so
+// we can require both a valid app token and an authenticated user for
+// protected endpoints.
+app.UseAuthentication();
+
 app.Use(async (context, next) =>
 {
     var path = context.Request.Path;
+    // Allow unauthenticated access to Swagger and Auth endpoints (login/register/refresh)
     if (path.StartsWithSegments("/swagger") || path.StartsWithSegments("/api/Auth"))
     {
         await next();
         return;
     }
 
+    // If the endpoint explicitly allows anonymous access (has [AllowAnonymous]), skip SaaS/JWT checks
+    var endpoint = context.GetEndpoint();
+    if (endpoint?.Metadata?.GetMetadata<Microsoft.AspNetCore.Authorization.IAllowAnonymous>() != null)
+    {
+        await next();
+        return;
+    }
+
+    // Require the SaaS app token header
     if (!context.Request.Headers.TryGetValue("saas-App-Token", out var providedToken) ||
         !string.Equals(providedToken, saasAppToken, StringComparison.Ordinal))
     {
@@ -149,9 +181,17 @@ app.Use(async (context, next) =>
         return;
     }
 
+    // Require an authenticated user (JWT access token)
+    if (context.User?.Identity == null || !context.User.Identity.IsAuthenticated)
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        await context.Response.WriteAsJsonAsync(new { error = "Missing or invalid user access token." });
+        return;
+    }
+
     await next();
 });
-app.UseAuthentication();
+
 app.UseAuthorization();
 app.MapControllers();
 
