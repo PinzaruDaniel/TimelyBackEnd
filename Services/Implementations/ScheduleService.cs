@@ -41,7 +41,7 @@ public class ScheduleService : IScheduleService
             .Include(g => g.ScheduleEntries)
             .FirstOrDefaultAsync(g => g.Id == groupId);
 
-        if (group == null || !group.ScheduleEntries.Any())
+        if (group == null)
             return null;
 
         var scheduleEntries = group.ScheduleEntries.Select(se => new ScheduleEntryDto(

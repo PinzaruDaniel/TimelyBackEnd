@@ -5,6 +5,7 @@ using System.Security.Claims;
 using System.Text;
 using TimelyBackEnd.Data;
 using TimelyBackEnd.DTOs.Auth;
+using TimelyBackEnd.Helpers;
 using TimelyBackEnd.Models;
 using TimelyBackEnd.Services.Interfaces;
 
@@ -26,12 +27,38 @@ public class AuthService : IAuthService
         if (await _context.Users.AnyAsync(u => u.Email == dto.Email))
             throw new Exception("Email already registered.");
 
+        var groupName = AllowedGroups.Normalize(dto.Group);
+        if (!AllowedGroups.Names.Contains(groupName))
+        {
+            throw new Exception("Invalid group.");
+        }
+
+        var group = await _context.Groups.FirstOrDefaultAsync(g => g.Name == groupName);
+        if (group == null)
+        {
+            group = new Group
+            {
+                Name = groupName,
+                SchoolName = "Default School"
+            };
+
+            _context.Groups.Add(group);
+            await _context.SaveChangesAsync();
+        }
+
         var user = new User
         {
             FullName = dto.Name,
             Email = dto.Email,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password)
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+            GroupId = group.Id,
+            Group = group
         };
+
+        if (!group.Users.Any(u => u.Id == user.Id))
+        {
+            group.Users.Add(user);
+        }
 
         _context.Users.Add(user);
         await _context.SaveChangesAsync();

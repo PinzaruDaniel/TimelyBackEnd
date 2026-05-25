@@ -5,12 +5,14 @@ using System.Text;
 using System.Linq;
 using Quartz;
 using TimelyBackEnd.Data;
+using TimelyBackEnd.Helpers;
 using TimelyBackEnd.Services;
 using TimelyBackEnd.Services.Jobs;
 using TimelyBackEnd.Services.Interfaces;
 using TimelyBackEnd.Services.Implementations;
 using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.Mvc;
+using System.Net.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,6 +30,8 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<NotificationJob>(); // Add this
 builder.Services.AddScoped<HomeworkCleanupJob>(); // Register HomeworkCleanupJob
 builder.Services.AddScoped<FcmService>();
+builder.Services.AddScoped<ImageCompressionService>();
+builder.Services.AddHttpClient();
 // CORS
 builder.Services.AddCors(options =>
 {
@@ -141,6 +145,32 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+
+// Seed allowed groups if they do not exist.
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<TimelyDbContext>();
+    var existingGroups = await dbContext.Groups
+        .Select(g => g.Name)
+        .ToListAsync();
+
+    var existingNames = new HashSet<string>(existingGroups, StringComparer.OrdinalIgnoreCase);
+    var missingGroups = AllowedGroups.Names
+        .Select(AllowedGroups.Normalize)
+        .Where(name => !existingNames.Contains(name))
+        .Select(name => new TimelyBackEnd.Models.Group
+        {
+            Name = name,
+            SchoolName = "Default School"
+        })
+        .ToList();
+
+    if (missingGroups.Count > 0)
+    {
+        dbContext.Groups.AddRange(missingGroups);
+        await dbContext.SaveChangesAsync();
+    }
+}
 
 // Middleware
 if (app.Environment.IsDevelopment())

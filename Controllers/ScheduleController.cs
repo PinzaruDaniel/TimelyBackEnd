@@ -40,16 +40,15 @@ public class ScheduleController : ControllerBase
     {
         var isEvenWeek = ResolveWeekParity(weekParity);
 
-        // Return mock schedule for specific group ID
-        if (groupId == Guid.Parse("cb41031e-f64e-484b-a38b-3ac7c6995c38"))
-        {
-            return Ok(BuildMockScheduleResponse(isEvenWeek));
-        }
-
         var schedule = await _scheduleService.GetScheduleByGroupAsync(groupId);
         if (schedule == null)
         {
-            return Ok(BuildMockScheduleResponse(isEvenWeek));
+            return Ok(BuildMockScheduleResponse("Unknown Group", groupId, isEvenWeek));
+        }
+
+        if (schedule.ScheduleEntries.Count == 0)
+        {
+            return Ok(BuildMockScheduleResponse(schedule.GroupName, schedule.GroupId, isEvenWeek));
         }
 
         var response = BuildScheduleResponse(schedule.GroupName, schedule.GroupId, schedule.ScheduleEntries, isEvenWeek);
@@ -209,13 +208,16 @@ public class ScheduleController : ControllerBase
         return response;
     }
 
-    private static Dictionary<string, object?> BuildMockScheduleResponse(bool isEvenWeek)
+    private static Dictionary<string, object?> BuildMockScheduleResponse(string groupName, object groupId, bool isEvenWeek)
     {
-        using var doc = JsonDocument.Parse(MockScheduleJson);
+        var json = GetMockScheduleJsonForGroup(groupName, groupId);
+        using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
-        var groupName = root.TryGetProperty("group", out var groupProp) ? groupProp.GetString() ?? "Mock Group" : "Mock Group";
+        var resolvedGroupName = root.TryGetProperty("group", out var groupProp)
+            ? groupProp.GetString() ?? groupName
+            : groupName;
 
-        object groupIdValue = "cb41031e-f64e-484b-a38b-3ac7c6995c38";
+        object groupIdValue = groupId;
         if (root.TryGetProperty("groupId", out var groupIdProp))
         {
             if (groupIdProp.ValueKind == JsonValueKind.Number && groupIdProp.TryGetInt64(out var idLong))
@@ -224,16 +226,39 @@ public class ScheduleController : ControllerBase
             }
             else if (groupIdProp.ValueKind == JsonValueKind.String)
             {
-                groupIdValue = groupIdProp.GetString() ??"cb41031e-f64e-484b-a38b-3ac7c6995c38";
+                groupIdValue = groupIdProp.GetString() ?? groupId;
             }
         }
 
-        var entries = ParseScheduleFromJson(MockScheduleJson).ScheduleEntries
+        var entries = ParseScheduleFromJson(json).ScheduleEntries
             .Where(e => ShouldIncludeThisWeek(e.Period, isEvenWeek))
             .Select(e => new ScheduleEntryDto(e.DayOfWeek, e.Time, e.Subject, e.Teacher, e.Room, e.Period));
 
-        return BuildScheduleResponse(groupName, groupIdValue, entries, isEvenWeek);
+        return BuildScheduleResponse(resolvedGroupName, groupIdValue, entries, isEvenWeek);
     }
+
+    private static string GetMockScheduleJsonForGroup(string groupName, object groupId)
+    {
+        if (string.Equals(groupName, MockScheduleGroupName, StringComparison.OrdinalIgnoreCase))
+        {
+            return MockScheduleJson;
+        }
+
+        return BuildEmptyScheduleJson(groupName, groupId);
+    }
+
+    private static string BuildEmptyScheduleJson(string groupName, object groupId)
+    {
+        var payload = new Dictionary<string, object?>
+        {
+            ["group"] = groupName,
+            ["groupId"] = groupId
+        };
+
+        return JsonSerializer.Serialize(payload);
+    }
+
+    private const string MockScheduleGroupName = "PAPP-231";
 
     private const string MockScheduleJson = @"{
     ""group"": ""PAPP-231"",
