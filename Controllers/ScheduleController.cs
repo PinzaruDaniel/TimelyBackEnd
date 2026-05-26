@@ -437,7 +437,7 @@ public class ScheduleController : ControllerBase
         }
 
         // Fallback to computed week parity (current assumption: this week is even)
-        return IsEvenWeek(DateTime.UtcNow);
+        return !IsEvenWeek(DateTime.UtcNow);
     }
 
     private static TimeSpan ParseStartTime(string timeRange)

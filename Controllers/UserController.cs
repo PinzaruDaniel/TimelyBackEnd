@@ -39,6 +39,20 @@ public class UserController : ControllerBase
         return Ok(profile);
     }
 
+    [HttpGet("group/{groupId}")]
+    public async Task<IActionResult> GetUsersByGroup(Guid groupId)
+    {
+        try
+        {
+            var users = await _userService.GetUsersByGroupIdAsync(groupId);
+            return Ok(users);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpPut("me")]
     [RequestSizeLimit(10 * 1024 * 1024)]
     public async Task<IActionResult> UpdateMe([FromForm] UpdateUserProfileDto dto)

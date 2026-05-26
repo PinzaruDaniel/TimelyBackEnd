@@ -82,6 +82,15 @@ public class UserService : IUserService
         return MapProfile(user);
     }
 
+    public async Task<IEnumerable<UserProfileDto>> GetUsersByGroupIdAsync(Guid groupId)
+    {
+        var users = await _context.Users
+            .Where(u => u.GroupId == groupId)
+            .ToListAsync();
+
+        return users.Select(MapProfile);
+    }
+
     private static string? Normalize(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();

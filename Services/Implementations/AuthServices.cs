@@ -68,7 +68,7 @@ public class AuthService : IAuthService
         user.RefreshTokenExpiresAt = tokens.RefreshTokenExpiresAt;
         await _context.SaveChangesAsync();
 
-        return new AuthResponseDto(user.Id, user.FullName, user.Email, tokens.AccessToken, tokens.RefreshToken);
+        return new AuthResponseDto(user.Id, user.FullName, user.Email, tokens.AccessToken, tokens.RefreshToken, user.GroupId);
     }
 
     public async Task<AuthResponseDto> LoginAsync(LoginDto dto)
@@ -82,7 +82,7 @@ public class AuthService : IAuthService
         user.RefreshTokenExpiresAt = tokens.RefreshTokenExpiresAt;
         await _context.SaveChangesAsync();
 
-        return new AuthResponseDto(user.Id, user.FullName, user.Email, tokens.AccessToken, tokens.RefreshToken);
+        return new AuthResponseDto(user.Id, user.FullName, user.Email, tokens.AccessToken, tokens.RefreshToken, user.GroupId);
     }
 
     public async Task<TokenPairDto> RefreshTokenAsync(string refreshToken)
