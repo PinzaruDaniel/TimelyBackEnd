@@ -14,6 +14,7 @@ namespace TimelyBackEnd.DTOs.User
         string? Zip,
         string? Country,
         string? ImageUrl,
-        Guid? GroupId);
+        Guid? GroupId,
+        string? GroupName);
 }
 

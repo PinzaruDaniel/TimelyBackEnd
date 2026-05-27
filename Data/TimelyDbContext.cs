@@ -39,6 +39,12 @@ public class TimelyDbContext : DbContext
         modelBuilder.Entity<Group>()
             .HasIndex(g => g.OwnerId);
 
+        // User FullName must be unique (used as username)
+        // TODO: Uncomment or remove this index if FullName uniqueness is no longer required
+        modelBuilder.Entity<User>()
+            .HasIndex(u => u.FullName)
+            .IsUnique();
+
         // User <-> Group (many-to-one)
         modelBuilder.Entity<User>()
             .HasOne(u => u.Group)

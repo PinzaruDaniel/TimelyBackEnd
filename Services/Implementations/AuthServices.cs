@@ -27,6 +27,9 @@ public class AuthService : IAuthService
         if (await _context.Users.AnyAsync(u => u.Email == dto.Email))
             throw new Exception("Email already registered.");
 
+        if (await _context.Users.AnyAsync(u => u.FullName == dto.Name))
+            throw new Exception("Username (Full Name) already taken.");
+
         var groupName = AllowedGroups.Normalize(dto.Group);
         if (!AllowedGroups.Names.Contains(groupName))
         {
@@ -68,12 +71,14 @@ public class AuthService : IAuthService
         user.RefreshTokenExpiresAt = tokens.RefreshTokenExpiresAt;
         await _context.SaveChangesAsync();
 
-        return new AuthResponseDto(user.Id, user.FullName, user.Email, tokens.AccessToken, tokens.RefreshToken, user.GroupId);
+        return new AuthResponseDto(user.Id, user.FullName, user.Email, tokens.AccessToken, tokens.RefreshToken, user.GroupId, group.Name);
     }
 
     public async Task<AuthResponseDto> LoginAsync(LoginDto dto)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
+        var user = await _context.Users
+            .Include(u => u.Group)
+            .FirstOrDefaultAsync(u => u.Email == dto.Email);
         if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
             throw new Exception("Invalid credentials.");
 
@@ -82,7 +87,7 @@ public class AuthService : IAuthService
         user.RefreshTokenExpiresAt = tokens.RefreshTokenExpiresAt;
         await _context.SaveChangesAsync();
 
-        return new AuthResponseDto(user.Id, user.FullName, user.Email, tokens.AccessToken, tokens.RefreshToken, user.GroupId);
+        return new AuthResponseDto(user.Id, user.FullName, user.Email, tokens.AccessToken, tokens.RefreshToken, user.GroupId, user.Group?.Name);
     }
 
     public async Task<TokenPairDto> RefreshTokenAsync(string refreshToken)
@@ -90,7 +95,7 @@ public class AuthService : IAuthService
         if (string.IsNullOrWhiteSpace(refreshToken))
             throw new Exception("Refresh token is required.");
 
-        var principal = GetPrincipalFromToken(refreshToken);
+        var principal = GetPrincipalFromToken(refreshToken, validateLifetime: false);
         if (principal == null)
             throw new Exception("Invalid refresh token.");
 
@@ -104,7 +109,10 @@ public class AuthService : IAuthService
             throw new Exception("Invalid refresh token.");
 
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
-        if (user == null || user.RefreshToken != refreshToken || user.RefreshTokenExpiresAt <= DateTime.UtcNow)
+        if (user == null || user.RefreshToken != refreshToken)
+            throw new Exception("Invalid refresh token.");
+
+        if (user.RefreshTokenExpiresAt <= DateTime.UtcNow)
             throw new Exception("Refresh token expired.");
 
         var tokens = CreateTokenPair(user);
@@ -165,7 +173,7 @@ public class AuthService : IAuthService
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    private ClaimsPrincipal? GetPrincipalFromToken(string token)
+    private ClaimsPrincipal? GetPrincipalFromToken(string token, bool validateLifetime = true)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
@@ -173,7 +181,7 @@ public class AuthService : IAuthService
         {
             ValidateIssuer = true,
             ValidateAudience = true,
-            ValidateLifetime = true,
+            ValidateLifetime = validateLifetime,
             ValidateIssuerSigningKey = true,
             ValidIssuer = _config["Jwt:Issuer"],
             ValidAudience = _config["Jwt:Audience"],

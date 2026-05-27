@@ -17,7 +17,9 @@ public class UserService : IUserService
 
     public async Task<UserProfileDto> GetProfileAsync(Guid userId)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId)
+        var user = await _context.Users
+            .Include(u => u.Group)
+            .FirstOrDefaultAsync(u => u.Id == userId)
             ?? throw new Exception("User not found.");
 
         return MapProfile(user);
@@ -25,7 +27,9 @@ public class UserService : IUserService
 
     public async Task<UserProfileDto> UpdateProfileAsync(Guid userId, UpdateUserProfileDto dto, string? imageUrl)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId)
+        var user = await _context.Users
+            .Include(u => u.Group)
+            .FirstOrDefaultAsync(u => u.Id == userId)
             ?? throw new Exception("User not found.");
 
         if (dto.FullName != null)
@@ -85,6 +89,7 @@ public class UserService : IUserService
     public async Task<IEnumerable<UserProfileDto>> GetUsersByGroupIdAsync(Guid groupId)
     {
         var users = await _context.Users
+            .Include(u => u.Group)
             .Where(u => u.GroupId == groupId)
             .ToListAsync();
 
@@ -112,7 +117,8 @@ public class UserService : IUserService
             user.Zip,
             user.Country,
             user.ImageUrl,
-            user.GroupId);
+            user.GroupId,
+            user.Group?.Name);
     }
 }
 
